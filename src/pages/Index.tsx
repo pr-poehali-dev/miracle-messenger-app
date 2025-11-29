@@ -1,9 +1,16 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Icon from '@/components/ui/icon';
+
+interface Message {
+  id: number;
+  text: string;
+  sender: 'me' | 'other';
+  time: string;
+}
 
 interface Chat {
   id: number;
@@ -14,6 +21,7 @@ interface Chat {
   unread?: number;
   online?: boolean;
   status?: string;
+  messages?: Message[];
 }
 
 interface Theme {
@@ -37,7 +45,12 @@ const MOCK_CHATS: Chat[] = [
     lastMessage: 'Привет! Как дела с проектом?',
     time: '14:32',
     unread: 3,
-    online: true
+    online: true,
+    messages: [
+      { id: 1, text: 'Привет! Ты видел последние изменения?', sender: 'other', time: '14:15' },
+      { id: 2, text: 'Да, смотрел вчера. Выглядит отлично!', sender: 'me', time: '14:20' },
+      { id: 3, text: 'Как дела с проектом?', sender: 'other', time: '14:32' }
+    ]
   },
   {
     id: 2,
@@ -84,6 +97,48 @@ export default function Index() {
   const [currentTheme, setCurrentTheme] = useState('default');
   const [selectedChat, setSelectedChat] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [chatMessages, setChatMessages] = useState<Record<number, Message[]>>({});
+  const [messageInput, setMessageInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const initialMessages: Record<number, Message[]> = {};
+    MOCK_CHATS.forEach(chat => {
+      if (chat.messages) {
+        initialMessages[chat.id] = chat.messages;
+      }
+    });
+    setChatMessages(initialMessages);
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, selectedChat]);
+
+  const sendMessage = () => {
+    if (!messageInput.trim() || !selectedChat) return;
+    
+    const newMessage: Message = {
+      id: Date.now(),
+      text: messageInput,
+      sender: 'me',
+      time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatMessages(prev => ({
+      ...prev,
+      [selectedChat]: [...(prev[selectedChat] || []), newMessage]
+    }));
+
+    setMessageInput('');
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
 
   const applyTheme = (themeId: string) => {
     setCurrentTheme(themeId);
@@ -202,25 +257,95 @@ export default function Index() {
             </ScrollArea>
           </div>
 
-          <div className="flex-1 flex items-center justify-center bg-background">
+          <div className="flex-1 flex flex-col bg-background">
             {selectedChat ? (
-              <div className="text-center space-y-4 animate-fade-in">
-                <div className={`w-24 h-24 rounded-3xl ${THEMES.find(t => t.id === currentTheme)?.gradient} flex items-center justify-center text-5xl mx-auto shadow-2xl`}>
-                  {MOCK_CHATS.find(c => c.id === selectedChat)?.avatar}
+              <>
+                <div className="p-4 border-b border-border bg-card flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-2xl ${THEMES.find(t => t.id === currentTheme)?.gradient} flex items-center justify-center text-2xl shadow-md`}>
+                    {MOCK_CHATS.find(c => c.id === selectedChat)?.avatar}
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="font-semibold text-lg">{MOCK_CHATS.find(c => c.id === selectedChat)?.name}</h2>
+                    {MOCK_CHATS.find(c => c.id === selectedChat)?.online && (
+                      <p className="text-sm text-green-500 flex items-center gap-1">
+                        <Icon name="Radio" size={12} />
+                        В сети
+                      </p>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="icon" className="rounded-xl">
+                    <Icon name="MoreVertical" size={20} />
+                  </Button>
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold">{MOCK_CHATS.find(c => c.id === selectedChat)?.name}</h2>
-                  <p className="text-muted-foreground">Начните общение</p>
+
+                <ScrollArea className="flex-1 p-6">
+                  <div className="space-y-4">
+                    {(chatMessages[selectedChat] || []).map((message, index) => (
+                      <div
+                        key={message.id}
+                        className={`flex animate-fade-in ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
+                        style={{ animationDelay: `${index * 0.05}s` }}
+                      >
+                        <div
+                          className={`max-w-[70%] p-4 rounded-3xl shadow-md ${
+                            message.sender === 'me'
+                              ? `${THEMES.find(t => t.id === currentTheme)?.gradient} text-white`
+                              : 'bg-card border border-border'
+                          }`}
+                        >
+                          <p className={message.sender === 'me' ? 'text-white' : 'text-foreground'}>{message.text}</p>
+                          <p className={`text-xs mt-2 ${message.sender === 'me' ? 'text-white/70' : 'text-muted-foreground'}`}>
+                            {message.time}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </ScrollArea>
+
+                <div className="p-4 border-t border-border bg-card">
+                  <div className="flex gap-2 items-end">
+                    <Button variant="ghost" size="icon" className="rounded-2xl shrink-0">
+                      <Icon name="Paperclip" size={20} />
+                    </Button>
+                    <div className="flex-1 relative">
+                      <Input
+                        placeholder="Написать сообщение..."
+                        className="rounded-3xl pr-12 bg-muted/50 border-0 resize-none"
+                        value={messageInput}
+                        onChange={(e) => setMessageInput(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 rounded-2xl"
+                      >
+                        <Icon name="Smile" size={20} />
+                      </Button>
+                    </div>
+                    <Button
+                      size="icon"
+                      className={`rounded-2xl ${THEMES.find(t => t.id === currentTheme)?.gradient} text-white shadow-lg shrink-0`}
+                      onClick={sendMessage}
+                      disabled={!messageInput.trim()}
+                    >
+                      <Icon name="Send" size={20} />
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              </>
             ) : (
-              <div className="text-center space-y-4">
-                <div className={`w-24 h-24 rounded-3xl ${THEMES.find(t => t.id === currentTheme)?.gradient} flex items-center justify-center mx-auto shadow-2xl animate-pulse-gradient bg-[length:200%_200%]`}>
-                  <Icon name="MessageCircle" size={40} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold gradient-text">Выберите чат</h2>
-                  <p className="text-muted-foreground">Начните общение с друзьями</p>
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center space-y-4">
+                  <div className={`w-24 h-24 rounded-3xl ${THEMES.find(t => t.id === currentTheme)?.gradient} flex items-center justify-center mx-auto shadow-2xl animate-pulse-gradient bg-[length:200%_200%]`}>
+                    <Icon name="MessageCircle" size={40} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold gradient-text">Выберите чат</h2>
+                    <p className="text-muted-foreground">Начните общение с друзьями</p>
+                  </div>
                 </div>
               </div>
             )}
