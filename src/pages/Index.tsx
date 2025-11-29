@@ -95,6 +95,8 @@ const MOCK_CHATS: Chat[] = [
 export default function Index() {
   const [activeView, setActiveView] = useState<'chats' | 'contacts' | 'profile' | 'settings'>('chats');
   const [currentTheme, setCurrentTheme] = useState('default');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [autoTheme, setAutoTheme] = useState(true);
   const [selectedChat, setSelectedChat] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [chatMessages, setChatMessages] = useState<Record<number, Message[]>>({});
@@ -110,6 +112,41 @@ export default function Index() {
     });
     setChatMessages(initialMessages);
   }, []);
+
+  useEffect(() => {
+    const checkAndSetTheme = () => {
+      if (autoTheme) {
+        const hour = new Date().getHours();
+        const shouldBeDark = hour >= 20 || hour < 7;
+        setIsDarkMode(shouldBeDark);
+        if (shouldBeDark) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } else {
+        if (isDarkMode) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
+    };
+
+    checkAndSetTheme();
+    const interval = setInterval(checkAndSetTheme, 60000);
+
+    return () => clearInterval(interval);
+  }, [autoTheme, isDarkMode]);
+
+  const toggleDarkMode = () => {
+    setAutoTheme(false);
+    setIsDarkMode(!isDarkMode);
+  };
+
+  const toggleAutoTheme = () => {
+    setAutoTheme(!autoTheme);
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -438,15 +475,60 @@ export default function Index() {
             </div>
 
             <div className="space-y-4">
+              <h2 className="text-2xl font-semibold">Внешний вид</h2>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border">
+                  <div>
+                    <div className="font-semibold">Темная тема</div>
+                    <p className="text-sm text-muted-foreground">Переключить темный режим</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleDarkMode}
+                    className="rounded-2xl"
+                    disabled={autoTheme}
+                  >
+                    {isDarkMode ? <Icon name="Moon" size={20} /> : <Icon name="Sun" size={20} />}
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border">
+                  <div>
+                    <div className="font-semibold">Автоматическая тема</div>
+                    <p className="text-sm text-muted-foreground">
+                      {autoTheme ? 'Темная тема с 20:00 до 7:00' : 'Выключено'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={toggleAutoTheme}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${
+                      autoTheme ? 'bg-primary' : 'bg-muted'
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform ${
+                        autoTheme ? 'translate-x-6' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
               <h2 className="text-2xl font-semibold">Уведомления</h2>
               <div className="space-y-2">
                 <div className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border">
                   <span>Звук уведомлений</span>
-                  <div className="w-12 h-6 bg-primary rounded-full"></div>
+                  <div className="w-12 h-6 bg-primary rounded-full relative">
+                    <div className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow-md" />
+                  </div>
                 </div>
                 <div className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border">
                   <span>Вибрация</span>
-                  <div className="w-12 h-6 bg-muted rounded-full"></div>
+                  <div className="w-12 h-6 bg-muted rounded-full relative">
+                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md" />
+                  </div>
                 </div>
               </div>
             </div>
