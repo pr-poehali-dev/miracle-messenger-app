@@ -101,6 +101,14 @@ export default function Index() {
   const [searchQuery, setSearchQuery] = useState('');
   const [chatMessages, setChatMessages] = useState<Record<number, Message[]>>({});
   const [messageInput, setMessageInput] = useState('');
+  const [userName, setUserName] = useState('Юрий Космонавт');
+  const [userNickname, setUserNickname] = useState('miracle_user');
+  const [userAvatar, setUserAvatar] = useState('🧑‍🚀');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingNickname, setIsEditingNickname] = useState(false);
+  const [tempName, setTempName] = useState('');
+  const [tempNickname, setTempNickname] = useState('');
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -147,6 +155,42 @@ export default function Index() {
   const toggleAutoTheme = () => {
     setAutoTheme(!autoTheme);
   };
+
+  const startEditName = () => {
+    setTempName(userName);
+    setIsEditingName(true);
+  };
+
+  const saveName = () => {
+    if (tempName.trim()) {
+      setUserName(tempName);
+    }
+    setIsEditingName(false);
+  };
+
+  const cancelEditName = () => {
+    setIsEditingName(false);
+    setTempName('');
+  };
+
+  const startEditNickname = () => {
+    setTempNickname(userNickname);
+    setIsEditingNickname(true);
+  };
+
+  const saveNickname = () => {
+    if (tempNickname.trim()) {
+      setUserNickname(tempNickname.replace(/[^a-zA-Z0-9_]/g, ''));
+    }
+    setIsEditingNickname(false);
+  };
+
+  const cancelEditNickname = () => {
+    setIsEditingNickname(false);
+    setTempNickname('');
+  };
+
+  const AVATAR_OPTIONS = ['🧑‍🚀', '👨‍💼', '👩‍🎨', '👨‍💻', '👩‍🔬', '🧙‍♂️', '👸', '🤴', '🦸‍♀️', '🦸‍♂️', '🧛‍♀️', '🧚‍♂️', '👨‍🎤', '👩‍🚀', '🥷', '👩‍🏫'];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -419,19 +463,98 @@ export default function Index() {
       {activeView === 'profile' && (
         <div className="flex-1 p-8 flex items-center justify-center animate-fade-in">
           <div className="max-w-md w-full space-y-6">
-            <div className={`w-32 h-32 rounded-[2rem] ${THEMES.find(t => t.id === currentTheme)?.gradient} flex items-center justify-center text-6xl mx-auto shadow-2xl`}>
-              🧑‍🚀
+            <div className="relative w-fit mx-auto">
+              <div className={`w-32 h-32 rounded-[2rem] ${THEMES.find(t => t.id === currentTheme)?.gradient} flex items-center justify-center text-6xl shadow-2xl`}>
+                {userAvatar}
+              </div>
+              <Button
+                size="icon"
+                className="absolute -bottom-2 -right-2 rounded-2xl gradient-purple text-white shadow-lg"
+                onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+              >
+                <Icon name="Camera" size={20} />
+              </Button>
             </div>
+
+            {showAvatarPicker && (
+              <div className="p-4 bg-card rounded-3xl border border-border animate-fade-in">
+                <p className="text-sm font-semibold mb-3">Выберите аватар</p>
+                <div className="grid grid-cols-8 gap-2">
+                  {AVATAR_OPTIONS.map((avatar) => (
+                    <button
+                      key={avatar}
+                      onClick={() => {
+                        setUserAvatar(avatar);
+                        setShowAvatarPicker(false);
+                      }}
+                      className={`w-10 h-10 rounded-xl text-2xl hover:scale-110 transition-transform ${
+                        userAvatar === avatar ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-muted'
+                      }`}
+                    >
+                      {avatar}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             
             <div className="text-center space-y-2">
               <h1 className="text-3xl font-bold">Ваш профиль</h1>
-              <p className="text-muted-foreground">@miracle_user</p>
+              {isEditingNickname ? (
+                <div className="flex items-center justify-center gap-2">
+                  <Input
+                    value={tempNickname}
+                    onChange={(e) => setTempNickname(e.target.value)}
+                    className="w-40 text-center rounded-2xl h-8"
+                    placeholder="username"
+                    autoFocus
+                  />
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveNickname}>
+                    <Icon name="Check" size={16} />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={cancelEditNickname}>
+                    <Icon name="X" size={16} />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={startEditNickname}
+                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-2 mx-auto"
+                >
+                  @{userNickname}
+                  <Icon name="Pencil" size={14} />
+                </button>
+              )}
             </div>
 
             <div className="space-y-3">
               <div className="p-4 bg-card rounded-2xl border border-border">
                 <label className="text-sm text-muted-foreground">Имя</label>
-                <p className="font-semibold">Юрий Космонавт</p>
+                {isEditingName ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Input
+                      value={tempName}
+                      onChange={(e) => setTempName(e.target.value)}
+                      className="rounded-2xl"
+                      placeholder="Введите имя"
+                      autoFocus
+                    />
+                    <Button size="icon" variant="ghost" onClick={saveName}>
+                      <Icon name="Check" size={18} />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={cancelEditName}>
+                      <Icon name="X" size={18} />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={startEditName}
+                    className="font-semibold flex items-center justify-between w-full group"
+                  >
+                    {userName}
+                    <Icon name="Pencil" size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                )}
               </div>
               
               <div className="p-4 bg-card rounded-2xl border border-border">
